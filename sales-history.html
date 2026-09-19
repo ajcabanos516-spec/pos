@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en" data-auth-mode="protected">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales History — StockIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="script.js"></script>
+<script>requireAuth();</script>
+</head>
+<body>
+
+<div class="app">
+    <button class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></button>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="logo"><span class="logo-text">StockIT</span></div>
+        <nav class="nav" id="mainNav" aria-label="Main navigation">
+            <a href="index.html" class="nav-item"><span class="nav-icon" aria-hidden="true">▦</span><span>Dashboard</span></a>
+            <a href="pos.html" class="nav-item"><span class="nav-icon" aria-hidden="true">🛒</span><span>Point of Sale</span></a>
+            <a href="products.html" class="nav-item"><span class="nav-icon" aria-hidden="true">📦</span><span>Products</span></a>
+            <a href="sales-history.html" class="nav-item active"><span class="nav-icon" aria-hidden="true">🕘</span><span>Sales History</span></a>
+            <a href="sales-report.html" class="nav-item"><span class="nav-icon" aria-hidden="true">📊</span><span>Sales Report</span></a>
+        </nav>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <button class="hamburger" id="sidebarToggle" aria-label="Toggle sidebar menu">☰</button>
+            <div class="spacer"></div>
+            <button class="icon-button" aria-label="Notifications">🔔<span class="notif-dot" aria-hidden="true"></span></button>
+            <div class="profile">
+                <div class="avatar" id="profileAvatar" aria-hidden="true">J</div>
+                <span class="profile-name" id="profileName">admin</span>
+                <button type="button" class="link-button" id="logoutBtn">Logout</button>
+            </div>
+        </header>
+
+        <main class="content" id="mainContent">
+        <h1 class="page-title">Sales History</h1>
+
+        <div class="panel">
+            <div class="filters-bar">
+                <input type="text" id="historySearch" placeholder="Search by transaction no...">
+                <select id="paymentFilter">
+                    <option value="all">All payment methods</option>
+                    <option value="Cash">Cash</option>
+                    <option value="GCash">GCash</option>
+                </select>
+            </div>
+
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead><tr><th>Txn No.</th><th>Date</th><th>Items</th><th>Payment</th><th>Total</th><th></th></tr></thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
+            <p class="empty-state" id="historyEmpty" hidden>No transactions match your filters.</p>
+        </div>
+
+        <div class="modal-backdrop" id="viewSaleModal" hidden>
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>Transaction Details</h3>
+                    <button type="button" class="modal-close" data-close="viewSaleModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="modal-customer">Txn No.: <strong id="viewTxnNo"></strong></p>
+                    <p class="modal-customer">Date: <strong id="viewTxnDate"></strong></p>
+
+                    <div class="modal-section-label">Items</div>
+                    <ul class="modal-items" id="viewTxnItems"></ul>
+
+                    <div class="modal-total-due"><span>Total</span><span id="viewTxnTotal">₱0.00</span></div>
+
+                    <p class="modal-customer">Payment Method: <strong id="viewTxnPayment"></strong></p>
+                    <p class="modal-customer" id="viewTxnChangeRow">Change: <strong id="viewTxnChange"></strong></p>
+                    <p class="modal-customer" id="viewTxnReferenceRow">Reference No. : <strong id="viewTxnReference"></strong></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" id="viewTxnPrintBtn">Print Receipt</button>
+                    <button type="button" class="btn-primary" data-close="viewSaleModal">Close</button>
+                </div>
+            </div>
+        </div>
+        </main>
+    </div>
+</div>
+
+<div id="printableReport" class="printable-report"></div>
+
+<script>
+function initHistoryView() {
+
+    historyRender();
+
+    document.getElementById('historySearch').addEventListener('input', historyRender);
+    document.getElementById('paymentFilter').addEventListener('change', historyRender);
+    document.getElementById('viewTxnPrintBtn').addEventListener('click', () => printReceipt(currentViewedSale));
+}
+
+function historyRender() {
+    const query = document.getElementById('historySearch').value.trim().toLowerCase();
+    const paymentFilter = document.getElementById('paymentFilter').value;
+
+    let sales = getSales();
+    if (query) sales = sales.filter(s => s.txnNo.toLowerCase().includes(query));
+    if (paymentFilter !== 'all') sales = sales.filter(s => s.payment === paymentFilter);
+
+    const tbody = document.getElementById('historyTableBody');
+    const empty = document.getElementById('historyEmpty');
+
+    if (!sales.length) {
+        tbody.innerHTML = '';
+        empty.hidden = false;
+        return;
+    }
+
+    empty.hidden = true;
+
+    tbody.innerHTML = sales.map(s => {
+        const itemCount = s.items.reduce((sum, i) => sum + i.qty, 0);
+        return `
+            <tr>
+                <td>${escapeHtml(s.txnNo)}</td>
+                <td>${formatDate(s.date)}</td>
+                <td>${itemCount} item${itemCount === 1 ? '' : 's'}</td>
+                <td><span class="badge badge-neutral">${escapeHtml(s.payment)}</span></td>
+                <td>${peso(s.total)}</td>
+                <td><button type="button" class="btn-secondary btn-sm" data-view-txn="${escapeHtml(s.txnNo)}">View</button></td>
+            </tr>
+        `;
+    }).join('');
+
+    tbody.querySelectorAll('[data-view-txn]').forEach(button => {
+        button.addEventListener('click', () => historyOpenDetails(button.dataset.viewTxn));
+    });
+}
+
+let currentViewedSale = null;
+
+function historyOpenDetails(txnNo) {
+    const sale = getSales().find(s => s.txnNo === txnNo);
+    if (!sale) return;
+
+    currentViewedSale = sale;
+
+    document.getElementById('viewTxnNo').textContent = sale.txnNo;
+    document.getElementById('viewTxnDate').textContent = formatDate(sale.date);
+    document.getElementById('viewTxnTotal').textContent = peso(sale.total);
+    document.getElementById('viewTxnPayment').textContent = sale.payment;
+
+    const changeRow = document.getElementById('viewTxnChangeRow');
+
+    if (sale.payment === 'Cash') {
+        changeRow.hidden = false;
+        document.getElementById('viewTxnChange').textContent = peso(sale.change);
+    } else {
+        changeRow.hidden = true;
+    }
+
+    const referenceRow = document.getElementById('viewTxnReferenceRow');
+
+    if (sale.reference) {
+        referenceRow.hidden = false;
+        document.getElementById('viewTxnReference').textContent = sale.reference;
+    } else {
+        referenceRow.hidden = true;
+    }
+
+    document.getElementById('viewTxnItems').innerHTML = sale.items.map(i => `
+        <li><span>${escapeHtml(i.name)} × ${i.qty}</span><strong>${peso(i.price * i.qty)}</strong></li>
+    `).join('');
+
+    showModal('viewSaleModal');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const session = getSession();
+    if (!session) return;
+
+    document.getElementById('profileName').textContent = session.name;
+    document.getElementById('profileAvatar').textContent = session.name.charAt(0).toUpperCase();
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    initHistoryView();
+});
+</script>
+</body>
+</html>

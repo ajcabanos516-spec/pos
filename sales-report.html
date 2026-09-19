@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" data-auth-mode="protected">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sales Report — StockIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="script.js"></script>
+<script>requireAuth();</script>
+</head>
+<body>
+
+<div class="app">
+    <button class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></button>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="logo"><span class="logo-text">StockIT</span></div>
+        <nav class="nav" id="mainNav" aria-label="Main navigation">
+            <a href="index.html" class="nav-item"><span class="nav-icon" aria-hidden="true">▦</span><span>Dashboard</span></a>
+            <a href="pos.html" class="nav-item"><span class="nav-icon" aria-hidden="true">🛒</span><span>Point of Sale</span></a>
+            <a href="products.html" class="nav-item"><span class="nav-icon" aria-hidden="true">📦</span><span>Products</span></a>
+            <a href="sales-history.html" class="nav-item"><span class="nav-icon" aria-hidden="true">🕘</span><span>Sales History</span></a>
+            <a href="sales-report.html" class="nav-item active"><span class="nav-icon" aria-hidden="true">📊</span><span>Sales Report</span></a>
+        </nav>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <button class="hamburger" id="sidebarToggle" aria-label="Toggle sidebar menu">☰</button>
+            <div class="spacer"></div>
+            <button class="icon-button" aria-label="Notifications">🔔<span class="notif-dot" aria-hidden="true"></span></button>
+            <div class="profile">
+                <div class="avatar" id="profileAvatar" aria-hidden="true">J</div>
+                <span class="profile-name" id="profileName">admin</span>
+                <button type="button" class="link-button" id="logoutBtn">Logout</button>
+            </div>
+        </header>
+
+        <main class="content" id="mainContent">
+        <div class="page-title-row">
+            <h1 class="page-title">Sales Report</h1>
+        </div>
+
+        <div class="page-title-row" style="margin-top: -8px;">
+            <p class="page-sub" style="margin: 0;">Print or export the sales report for the currently selected date range.</p>
+            <div class="report-actions">
+                <button type="button" class="btn-secondary btn-sm text-red-btn" id="reportPdfBtn">📄 Export PDF</button>
+                <button type="button" class="btn-secondary btn-sm text-green-btn" id="reportExcelBtn">⬇ Export Excel</button>
+            </div>
+        </div>
+
+        <div class="filters-bar" id="reportFilterBar">
+            <select id="reportRangeSelect">
+                <option value="7">Last 7 Days</option>
+                <option value="30">Last 30 Days / 1 Month</option>
+                <option value="60">Last 2 Months</option>
+                <option value="90">Last 3 Months</option>
+                <option value="180">Last 6 Months</option>
+                <option value="365">Last 12 Months</option>
+                <option value="custom">Custom Date Range</option>
+            </select>
+            <input type="date" id="reportCustomStart" hidden>
+            <span class="report-range-sep" id="reportRangeSep" hidden>to</span>
+            <input type="date" id="reportCustomEnd" hidden>
+            <button type="button" class="btn-primary btn-sm" id="reportCustomApply" hidden>Apply</button>
+        </div>
+        <p class="modal-error" id="reportRangeError" hidden></p>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-card-top"><span class="stat-label">Total Sales</span><div class="stat-icon green">₱</div></div>
+                <span class="stat-value" id="reportTotalSales">₱0.00</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-top"><span class="stat-label">Transactions</span><div class="stat-icon blue">🧾</div></div>
+                <span class="stat-value" id="reportTxnCount">0</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-top"><span class="stat-label">Average Sale</span><div class="stat-icon amber">Ø</div></div>
+                <span class="stat-value" id="reportAvgSale">₱0.00</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-top"><span class="stat-label">Best Seller</span><div class="stat-icon red">★</div></div>
+                <span class="stat-value" id="reportBestSeller" style="font-size:16px;">—</span>
+            </div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-header"><h2 class="panel-title">Top Products</h2></div>
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead><tr><th>Product</th><th>Qty Sold</th><th>Revenue</th></tr></thead>
+                    <tbody id="topProductsBody"></tbody>
+                </table>
+            </div>
+            <p class="empty-state" id="topProductsEmpty" hidden>No sales recorded in this range yet.</p>
+        </div>
+        </main>
+    </div>
+</div>
+
+<div id="printableReport" class="printable-report"></div>
+
+<script>
+let reportRange = '7';
+let reportCustomStart = '';
+let reportCustomEnd = '';
+
+function initReportView() {
+    reportRange = '7';
+    reportCustomStart = '';
+    reportCustomEnd = '';
+
+    const select = document.getElementById('reportRangeSelect');
+    const customStartInput = document.getElementById('reportCustomStart');
+    const customEndInput = document.getElementById('reportCustomEnd');
+    const customSep = document.getElementById('reportRangeSep');
+    const applyBtn = document.getElementById('reportCustomApply');
+    const errorEl = document.getElementById('reportRangeError');
+
+    select.value = reportRange;
+
+    const toggleCustomInputs = show => {
+        customStartInput.hidden = !show;
+        customEndInput.hidden = !show;
+        customSep.hidden = !show;
+        applyBtn.hidden = !show;
+        if (!show) errorEl.hidden = true;
+    };
+
+    select.addEventListener('change', () => {
+        reportRange = select.value;
+
+        if (reportRange === 'custom') {
+            toggleCustomInputs(true);
+            if (!customStartInput.value || !customEndInput.value) return;
+        } else {
+            toggleCustomInputs(false);
+        }
+
+        reportRender();
+    });
+
+    applyBtn.addEventListener('click', () => {
+        const start = customStartInput.value;
+        const end = customEndInput.value;
+
+        if (!start || !end) {
+            errorEl.textContent = 'Please select both a start and end date.';
+            errorEl.hidden = false;
+            return;
+        }
+
+        if (new Date(start) > new Date(end)) {
+            errorEl.textContent = 'Start date must be on or before the end date.';
+            errorEl.hidden = false;
+            return;
+        }
+
+        errorEl.hidden = true;
+        reportCustomStart = start;
+        reportCustomEnd = end;
+        reportRender();
+    });
+
+    const pdfBtn = document.getElementById('reportPdfBtn');
+    if (pdfBtn) pdfBtn.addEventListener('click', exportSalesReportPDF);
+
+    const excelBtn = document.getElementById('reportExcelBtn');
+    if (excelBtn) excelBtn.addEventListener('click', exportSalesExcel);
+
+    reportRender();
+}
+
+const REPORT_RANGE_LABELS = {
+    '7': 'Last 7 Days',
+    '30': 'Last 30 Days / 1 Month',
+    '60': 'Last 2 Months',
+    '90': 'Last 3 Months',
+    '180': 'Last 6 Months',
+    '365': 'Last 12 Months'
+};
+
+function reportRangeLabel() {
+    if (reportRange === 'custom') {
+        if (reportCustomStart && reportCustomEnd) {
+            return `Custom: ${reportCustomStart} to ${reportCustomEnd}`;
+        }
+        return 'Custom Date Range';
+    }
+
+    return REPORT_RANGE_LABELS[reportRange] || `Last ${reportRange} Days`;
+}
+
+function reportSummaryStats(sales) {
+    const totalSales = sales.reduce((sum, s) => sum + s.total, 0);
+    const avgSale = sales.length ? totalSales / sales.length : 0;
+
+    const qtyByProduct = {};
+    sales.forEach(s => s.items.forEach(i => {
+        qtyByProduct[i.name] = (qtyByProduct[i.name] || 0) + i.qty;
+    }));
+
+    const bestSellerEntries = Object.entries(qtyByProduct).sort((a, b) => b[1] - a[1]);
+    const bestSeller = bestSellerEntries.length ? bestSellerEntries[0][0] : '—';
+
+    return { totalSales, avgSale, bestSeller, transactionCount: sales.length };
+}
+
+function reportFileSlug() {
+    const rangeSlug = reportRange === 'custom'
+        ? `custom-${reportCustomStart || 'start'}-to-${reportCustomEnd || 'end'}`
+        : `last-${reportRange}-days`;
+
+    const dateStamp = new Date().toISOString().slice(0, 10);
+    return `${rangeSlug}-${dateStamp}`;
+}
+
+function csvEscapeField(value) {
+    const str = value === null || value === undefined ? '' : String(value);
+
+    if (/[",\r\n]/.test(str)) {
+        return '"' + str.replace(/"/g, '""') + '"';
+    }
+
+    return str;
+}
+
+function exportSalesExcel() {
+    const sales = reportFilteredSales();
+    const stats = reportSummaryStats(sales);
+
+    const rows = [];
+    rows.push(['Date', 'Transaction No.', 'Items', 'Quantity', 'Sales Amount', 'Payment Method', 'Reference No.']);
+
+    sales.forEach(s => {
+        const itemsSummary = s.items.map(i => `${i.name} x${i.qty}`).join('; ');
+        const totalQty = s.items.reduce((sum, i) => sum + i.qty, 0);
+
+        rows.push([
+            formatDate(s.date),
+            s.txnNo,
+            itemsSummary,
+            totalQty,
+            s.total.toFixed(2),
+            s.payment,
+            s.reference || ''
+        ]);
+    });
+
+    rows.push([]);
+    rows.push(['Summary']);
+    rows.push(['Report Range', reportRangeLabel()]);
+    rows.push(['Total Transactions', stats.transactionCount]);
+    rows.push(['Total Sales', stats.totalSales.toFixed(2)]);
+    rows.push(['Average Sale', stats.avgSale.toFixed(2)]);
+    rows.push(['Best Seller', stats.bestSeller]);
+
+    const csvContent = rows.map(row => row.map(csvEscapeField).join(',')).join('\r\n');
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `stockit-sales-report-${reportFileSlug()}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+}
+
+function buildPrintableReportHTML() {
+    const sales = reportFilteredSales();
+    const stats = reportSummaryStats(sales);
+    const generatedOn = new Date().toLocaleString('en-PH', { dateStyle: 'medium', timeStyle: 'short' });
+
+    const rows = sales.map(s => {
+    const itemsSummary = s.items.map(i => `${escapeHtml(i.name)} x${i.qty}`).join('<br>');
+    const totalQty = s.items.reduce((sum, i) => sum + i.qty, 0);
+
+    return `
+        <tr>
+            <td>${formatDate(s.date)}</td>
+            <td>${escapeHtml(s.txnNo)}</td>
+            <td>${itemsSummary}</td>
+            <td>${totalQty}</td>
+            <td>${peso(s.total)}</td>
+            <td>${escapeHtml(s.payment)}</td>
+            <td>${s.reference ? escapeHtml(s.reference) : '—'}</td>
+        </tr>
+    `;
+}).join('');
+
+    return `
+        <div class="print-header">
+            <h1>StockIT — Sales Report</h1>
+            <p>Report range: ${escapeHtml(reportRangeLabel())}</p>
+            <p>Generated on: ${escapeHtml(generatedOn)}</p>
+        </div>
+        <div class="print-summary">
+            <div><span>Total Sales</span><strong>${peso(stats.totalSales)}</strong></div>
+            <div><span>Transactions</span><strong>${stats.transactionCount}</strong></div>
+            <div><span>Average Sale</span><strong>${peso(stats.avgSale)}</strong></div>
+            <div><span>Best Seller</span><strong>${escapeHtml(stats.bestSeller)}</strong></div>
+        </div>
+        <table class="print-table">
+            <thead>
+                <tr><th>Date</th><th>Txn No.</th><th>Items</th><th>Qty</th><th>Amount</th><th>Payment</th><th>Reference No.</th></tr>
+            </thead>
+            <tbody>
+                ${rows || '<tr><td colspan="7" style="text-align:center;color:#888;">No sales recorded in this range.</td></tr>'}
+            </tbody>
+        </table>
+    `;
+}
+
+function exportSalesReportPDF() {
+    const container = document.getElementById('printableReport');
+    if (!container) return;
+
+    container.innerHTML = buildPrintableReportHTML();
+
+    const originalTitle = document.title;
+    document.title = `stockit-sales-report-${reportFileSlug()}`;
+
+    const restoreTitle = () => {
+        document.title = originalTitle;
+        window.removeEventListener('afterprint', restoreTitle);
+    };
+
+    window.addEventListener('afterprint', restoreTitle);
+
+    window.print();
+}
+
+function reportFilteredSales() {
+    const sales = getSales();
+
+    if (reportRange === 'custom') {
+        if (!reportCustomStart || !reportCustomEnd) return [];
+
+        const startTime = new Date(reportCustomStart + 'T00:00:00').getTime();
+        const endTime = new Date(reportCustomEnd + 'T23:59:59.999').getTime();
+
+        return sales.filter(s => {
+            const t = new Date(s.date).getTime();
+            return t >= startTime && t <= endTime;
+        });
+    }
+
+    const cutoff = Date.now() - Number(reportRange) * 24 * 60 * 60 * 1000;
+    return sales.filter(s => new Date(s.date).getTime() >= cutoff);
+}
+
+function reportRender() {
+    const sales = reportFilteredSales();
+    const total = sales.reduce((sum, s) => sum + s.total, 0);
+    const avg = sales.length ? total / sales.length : 0;
+
+    document.getElementById('reportTotalSales').textContent = peso(total);
+    document.getElementById('reportTxnCount').textContent = sales.length;
+    document.getElementById('reportAvgSale').textContent = peso(avg);
+
+    reportRenderBestSeller(sales);
+    reportRenderTopProducts(sales);
+}
+
+function reportRenderBestSeller(sales) {
+    const qtyByProduct = {};
+
+    sales.forEach(s => s.items.forEach(i => {
+        qtyByProduct[i.name] = (qtyByProduct[i.name] || 0) + i.qty;
+    }));
+
+    const entries = Object.entries(qtyByProduct).sort((a, b) => b[1] - a[1]);
+
+    document.getElementById('reportBestSeller').textContent = entries.length ? entries[0][0] : '—';
+}
+
+function reportRenderTopProducts(sales) {
+    const stats = {};
+
+    sales.forEach(s => s.items.forEach(i => {
+        if (!stats[i.name]) stats[i.name] = { qty: 0, revenue: 0 };
+        stats[i.name].qty += i.qty;
+        stats[i.name].revenue += i.qty * i.price;
+    }));
+
+    const rows = Object.entries(stats).sort((a, b) => b[1].qty - a[1].qty);
+    const tbody = document.getElementById('topProductsBody');
+    const empty = document.getElementById('topProductsEmpty');
+
+    if (!rows.length) {
+        tbody.innerHTML = '';
+        empty.hidden = false;
+        return;
+    }
+
+    empty.hidden = true;
+
+    tbody.innerHTML = rows.map(([name, data]) => `
+        <tr><td>${escapeHtml(name)}</td><td>${data.qty}</td><td>${peso(data.revenue)}</td></tr>
+    `).join('');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const session = getSession();
+    if (!session) return;
+
+    document.getElementById('profileName').textContent = session.name;
+    document.getElementById('profileAvatar').textContent = session.name.charAt(0).toUpperCase();
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    initReportView();
+});
+</script>
+</body>
+</html>

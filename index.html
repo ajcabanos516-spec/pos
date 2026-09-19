@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en" data-auth-mode="protected">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard — StockIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="script.js"></script>
+<script>requireAuth();</script>
+</head>
+<body>
+
+<div class="app">
+    <button class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></button>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="logo"><span class="logo-text">StockIT</span></div>
+        <nav class="nav" id="mainNav" aria-label="Main navigation">
+            <a href="index.html" class="nav-item active"><span class="nav-icon" aria-hidden="true">▦</span><span>Dashboard</span></a>
+            <a href="pos.html" class="nav-item"><span class="nav-icon" aria-hidden="true">🛒</span><span>Point of Sale</span></a>
+            <a href="products.html" class="nav-item"><span class="nav-icon" aria-hidden="true">📦</span><span>Products</span></a>
+            <a href="sales-history.html" class="nav-item"><span class="nav-icon" aria-hidden="true">🕘</span><span>Sales History</span></a>
+            <a href="sales-report.html" class="nav-item"><span class="nav-icon" aria-hidden="true">📊</span><span>Sales Report</span></a>
+        </nav>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <button class="hamburger" id="sidebarToggle" aria-label="Toggle sidebar menu">☰</button>
+            <div class="spacer"></div>
+            <button class="icon-button" aria-label="Notifications">🔔<span class="notif-dot" aria-hidden="true"></span></button>
+            <div class="profile">
+                <div class="avatar" id="profileAvatar" aria-hidden="true">J</div>
+                <span class="profile-name" id="profileName">admin</span>
+                <button type="button" class="link-button" id="logoutBtn">Logout</button>
+            </div>
+        </header>
+
+        <main class="content" id="mainContent">
+        <div class="page-title-row">
+            <div>
+                <h1 class="page-title">Dashboard</h1>
+                <p class="page-sub" id="todayLabel"></p>
+            </div>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-card-top"><span class="stat-label">Today's Sales</span><div class="stat-icon green">₱</div></div>
+                <span class="stat-value" id="statTodaySales">₱0.00</span>
+                <span class="stat-sub" id="statTodayTxnCount">0 transactions</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-top"><span class="stat-label">All-Time Sales</span><div class="stat-icon blue">📈</div></div>
+                <span class="stat-value" id="statAllTimeSales">₱0.00</span>
+                <span class="stat-sub" id="statAllTimeTxnCount">0 transactions total</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-top"><span class="stat-label">Products</span><div class="stat-icon amber">📦</div></div>
+                <span class="stat-value" id="statProductCount">0</span>
+                <span class="stat-sub">active SKUs in your product list</span>
+            </div>
+            <div class="stat-card">
+                <div class="stat-card-top"><span class="stat-label">Low Stock Alerts</span><div class="stat-icon red">⚠</div></div>
+                <span class="stat-value" id="statLowStockCount">0</span>
+                <span class="stat-sub" id="statLowStockThreshold"></span>
+            </div>
+        </div>
+
+        <div class="panel" id="dashboardChartPanel">
+            <div class="panel-header">
+                <div>
+                    <h2 class="panel-title">Sales Overview</h2>
+                    <p class="page-sub" style="margin:4px 0 0;">Revenue trend for the selected period</p>
+                </div>
+                <div class="dashboard-chart-controls" id="dashboardChartControls">
+                    <select id="dashboardChartRange" class="dashboard-chart-range">
+                        <option value="today">Today</option>
+                        <option value="7">Last 7 Days</option>
+                        <option value="30">Last 30 Days</option>
+                        <option value="60">Last 2 Months</option>
+                        <option value="90">Last 3 Months</option>
+                        <option value="custom">Custom Range</option>
+                    </select>
+                    <input type="date" id="dashboardChartStart" class="dashboard-chart-date" hidden>
+                    <span class="report-range-sep" id="dashboardChartSep" hidden>to</span>
+                    <input type="date" id="dashboardChartEnd" class="dashboard-chart-date" hidden>
+                    <button type="button" class="btn-primary btn-sm" id="dashboardChartApply" hidden>Apply</button>
+                </div>
+            </div>
+            <p class="modal-error" id="dashboardChartError" hidden></p>
+            <div class="vbar-panel" id="dashboardChartWrap">
+                <div class="vbar-yaxis" id="dashboardChartYAxis"></div>
+                <div class="vbar-scroll">
+                    <div class="vbar-plot" id="dashboardSalesChart"></div>
+                    <div class="vbar-labels" id="dashboardChartLabels"></div>
+                </div>
+                <div class="chart-tooltip" id="dashboardChartTooltip"></div>
+            </div>
+            <p class="empty-state" id="dashboardChartEmpty" hidden>No sales recorded in this period yet.</p>
+        </div>
+
+        <div class="two-col">
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Recent Transactions</h2>
+                    <a href="sales-history.html" class="link-button">View all →</a>
+                </div>
+                <div class="table-wrap">
+                    <table class="data-table" id="recentTable">
+                        <thead><tr><th>Txn No.</th><th>Date</th><th>Payment</th><th>Total</th></tr></thead>
+                        <tbody id="recentTableBody"></tbody>
+                    </table>
+                </div>
+                <p class="empty-state" id="recentEmpty" hidden>No transactions yet. Make a sale on the POS page to see it here.</p>
+            </div>
+
+            <div class="panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">Low Stock</h2>
+                    <a href="products.html" class="link-button">Manage →</a>
+                </div>
+                <div class="low-stock-list" id="lowStockList"></div>
+                <p class="empty-state" id="lowStockEmpty" hidden>All products are well stocked.</p>
+            </div>
+        </div>
+        </main>
+    </div>
+</div>
+
+<script>
+function initDashboardView() {
+    const today = new Date();
+    document.getElementById('todayLabel').textContent = today.toLocaleDateString('en-PH', {
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    const products = getProducts();
+    const sales = getSales();
+
+    const todaySales = sales.filter(s => isSameDay(s.date, today));
+    const todayTotal = todaySales.reduce((sum, s) => sum + s.total, 0);
+    const allTimeTotal = sales.reduce((sum, s) => sum + s.total, 0);
+    const lowStock = products.filter(p => p.stock > 0 && p.stock <= LOW_STOCK_THRESHOLD);
+
+    document.getElementById('statTodaySales').textContent = peso(todayTotal);
+    document.getElementById('statTodayTxnCount').textContent = `${todaySales.length} transaction${todaySales.length === 1 ? '' : 's'}`;
+    document.getElementById('statAllTimeSales').textContent = peso(allTimeTotal);
+    document.getElementById('statAllTimeTxnCount').textContent = `${sales.length} transaction${sales.length === 1 ? '' : 's'} total`;
+    document.getElementById('statProductCount').textContent = products.length;
+    document.getElementById('statLowStockCount').textContent = lowStock.length;
+    document.getElementById('statLowStockThreshold').textContent = `${LOW_STOCK_THRESHOLD} units or fewer`;
+
+    const recent = sales.slice(0, 5);
+    const recentTable = document.getElementById('recentTable');
+    const recentEmpty = document.getElementById('recentEmpty');
+
+    if (!recent.length) {
+        recentTable.hidden = true;
+        recentEmpty.hidden = false;
+    } else {
+        recentTable.hidden = false;
+        recentEmpty.hidden = true;
+        document.getElementById('recentTableBody').innerHTML = recent.map(s => `
+            <tr>
+                <td>${escapeHtml(s.txnNo)}</td>
+                <td>${formatDate(s.date)}</td>
+                <td><span class="badge badge-neutral">${escapeHtml(s.payment)}</span></td>
+                <td>${peso(s.total)}</td>
+            </tr>
+        `).join('');
+    }
+
+    renderDashboardSalesChart();
+
+    const lowStockSorted = products.filter(p => p.stock <= LOW_STOCK_THRESHOLD).sort((a, b) => a.stock - b.stock);
+    const lowStockList = document.getElementById('lowStockList');
+    const lowStockEmpty = document.getElementById('lowStockEmpty');
+
+    if (!lowStockSorted.length) {
+        lowStockList.hidden = true;
+        lowStockEmpty.hidden = false;
+    } else {
+        lowStockList.hidden = false;
+        lowStockEmpty.hidden = true;
+        lowStockList.innerHTML = lowStockSorted.map(p => `
+            <div class="low-stock-item">
+                <span>${escapeHtml(p.name)}</span>
+                <span class="badge ${p.stock === 0 ? 'badge-danger' : 'badge-warning'}">
+                    ${p.stock === 0 ? 'Out of stock' : p.stock + ' left'}
+                </span>
+            </div>
+        `).join('');
+    }
+}
+
+let dashboardChartRange = '7';
+let dashboardChartCustomStart = '';
+let dashboardChartCustomEnd = '';
+
+function pesoShort(value) {
+    return '₱' + Math.round(value).toLocaleString('en-PH');
+}
+
+function niceChartCeiling(value) {
+    if (value <= 0) return 100;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(value)));
+    const normalized = value / magnitude;
+    let niceNormalized;
+    if (normalized <= 1) niceNormalized = 1;
+    else if (normalized <= 2) niceNormalized = 2;
+    else if (normalized <= 5) niceNormalized = 5;
+    else niceNormalized = 10;
+    return niceNormalized * magnitude;
+}
+
+function buildDashboardChartSeries(range) {
+    const sales = getSales();
+    const today = new Date();
+
+    const dayTotal = date => sales
+        .filter(s => isSameDay(s.date, date))
+        .reduce((sum, s) => sum + s.total, 0);
+
+    let dates = [];
+
+if (range === 'today') {
+    dates.push(new Date(today));
+} else if (range === 'custom') {
+    if (!dashboardChartCustomStart || !dashboardChartCustomEnd) return [];
+    const start = new Date(dashboardChartCustomStart + 'T00:00:00');
+    const end = new Date(dashboardChartCustomEnd + 'T00:00:00');
+    if (start > end) return [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        dates.push(new Date(d));
+    }
+} else {
+    const days = Number(range);
+    for (let i = days - 1; i >= 0; i--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        dates.push(date);
+    }
+}
+
+    const useWeekdayLabel = dates.length <= 14;
+
+    return dates.map(date => ({
+        label: useWeekdayLabel
+            ? date.toLocaleDateString('en-PH', { weekday: 'short' })
+            : date.toLocaleDateString('en-PH', { month: 'numeric', day: 'numeric' }),
+        fullLabel: date.toLocaleDateString('en-PH', { weekday: 'long', month: 'short', day: 'numeric' }),
+        value: dayTotal(date)
+    }));
+}
+
+function renderDashboardSalesChart() {
+    const rangeSelect = document.getElementById('dashboardChartRange');
+    const startInput = document.getElementById('dashboardChartStart');
+    const endInput = document.getElementById('dashboardChartEnd');
+    const sep = document.getElementById('dashboardChartSep');
+    const applyBtn = document.getElementById('dashboardChartApply');
+    const errorEl = document.getElementById('dashboardChartError');
+
+    if (rangeSelect && !rangeSelect.dataset.bound) {
+        rangeSelect.dataset.bound = 'true';
+        rangeSelect.value = dashboardChartRange;
+
+        const toggleCustomInputs = show => {
+            startInput.hidden = !show;
+            endInput.hidden = !show;
+            sep.hidden = !show;
+            applyBtn.hidden = !show;
+            if (!show) errorEl.hidden = true;
+        };
+
+        toggleCustomInputs(dashboardChartRange === 'custom');
+
+        if (dashboardChartCustomStart) startInput.value = dashboardChartCustomStart;
+        if (dashboardChartCustomEnd) endInput.value = dashboardChartCustomEnd;
+
+        rangeSelect.addEventListener('change', () => {
+            dashboardChartRange = rangeSelect.value;
+            toggleCustomInputs(dashboardChartRange === 'custom');
+            renderDashboardSalesChart();
+        });
+
+        applyBtn.addEventListener('click', () => {
+            const start = startInput.value;
+            const end = endInput.value;
+
+            if (!start || !end) {
+                errorEl.textContent = 'Please select both a start and end date.';
+                errorEl.hidden = false;
+                return;
+            }
+
+            if (new Date(start) > new Date(end)) {
+                errorEl.textContent = 'Start date must be on or before the end date.';
+                errorEl.hidden = false;
+                return;
+            }
+
+            errorEl.hidden = true;
+            dashboardChartCustomStart = start;
+            dashboardChartCustomEnd = end;
+            renderDashboardSalesChart();
+        });
+    }
+
+    const series = buildDashboardChartSeries(dashboardChartRange);
+
+    const wrap = document.getElementById('dashboardChartWrap');
+    const empty = document.getElementById('dashboardChartEmpty');
+    const yAxisEl = document.getElementById('dashboardChartYAxis');
+    const plotEl = document.getElementById('dashboardSalesChart');
+    const labelsEl = document.getElementById('dashboardChartLabels');
+
+    const hasSales = series.some(d => d.value > 0);
+
+    if (!hasSales) {
+        wrap.hidden = true;
+        empty.hidden = false;
+        return;
+    }
+
+    wrap.hidden = false;
+    empty.hidden = true;
+
+    const maxValue = Math.max(...series.map(d => d.value), 0);
+    const topValue = niceChartCeiling(maxValue);
+
+    yAxisEl.innerHTML = [1, 0.75, 0.5, 0.25, 0]
+        .map(f => `<span>${pesoShort(topValue * f)}</span>`)
+        .join('');
+
+    plotEl.innerHTML = series.map(d => {
+        const pct = topValue ? (d.value > 0 ? Math.max(2, (d.value / topValue) * 100) : 0) : 0;
+
+        return `
+            <div class="vbar-column">
+                <div class="vbar-fill"
+                     style="height:${pct}%"
+                     data-value="${d.value}"
+                     data-label="${escapeHtml(d.fullLabel)}"></div>
+            </div>
+        `;
+    }).join('');
+
+    labelsEl.innerHTML = series.map(d => `<span class="vbar-label">${escapeHtml(d.label)}</span>`).join('');
+
+    bindDashboardChartTooltip();
+}
+
+function bindDashboardChartTooltip() {
+    const panel = document.getElementById('dashboardChartWrap');
+    const tooltip = document.getElementById('dashboardChartTooltip');
+
+    if (!panel || !tooltip) return;
+
+    panel.querySelectorAll('.vbar-fill').forEach(bar => {
+        bar.addEventListener('mouseenter', () => {
+            const value = Number(bar.dataset.value);
+            tooltip.innerHTML = `<strong>${bar.dataset.label}</strong><span>Sales: ${peso(value)}</span>`;
+            positionDashboardTooltip(bar, panel, tooltip);
+            tooltip.classList.add('visible');
+        });
+
+        bar.addEventListener('mousemove', () => {
+            positionDashboardTooltip(bar, panel, tooltip);
+        });
+
+        bar.addEventListener('mouseleave', () => {
+            tooltip.classList.remove('visible');
+        });
+    });
+}
+
+function positionDashboardTooltip(bar, panel, tooltip) {
+    const barRect = bar.getBoundingClientRect();
+    const panelRect = panel.getBoundingClientRect();
+    const left = barRect.left - panelRect.left + barRect.width / 2;
+    const top = barRect.top - panelRect.top;
+    tooltip.style.left = `${left}px`;
+    tooltip.style.top = `${top}px`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    requireAuth();
+
+    const session = getSession();
+    if (!session) return;
+
+    document.getElementById('profileName').textContent = session.name;
+    document.getElementById('profileAvatar').textContent = session.name.charAt(0).toUpperCase();
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    initDashboardView();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en" data-auth-mode="protected">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Products — StockIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="script.js"></script>
+<script>requireAuth();</script>
+</head>
+<body>
+
+<div class="app">
+    <button class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></button>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="logo"><span class="logo-text">StockIT</span></div>
+        <nav class="nav" id="mainNav" aria-label="Main navigation">
+            <a href="index.html" class="nav-item"><span class="nav-icon" aria-hidden="true">▦</span><span>Dashboard</span></a>
+            <a href="pos.html" class="nav-item"><span class="nav-icon" aria-hidden="true">🛒</span><span>Point of Sale</span></a>
+            <a href="products.html" class="nav-item active"><span class="nav-icon" aria-hidden="true">📦</span><span>Products</span></a>
+            <a href="sales-history.html" class="nav-item"><span class="nav-icon" aria-hidden="true">🕘</span><span>Sales History</span></a>
+            <a href="sales-report.html" class="nav-item"><span class="nav-icon" aria-hidden="true">📊</span><span>Sales Report</span></a>
+        </nav>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <button class="hamburger" id="sidebarToggle" aria-label="Toggle sidebar menu">☰</button>
+            <div class="spacer"></div>
+            <button class="icon-button" aria-label="Notifications">🔔<span class="notif-dot" aria-hidden="true"></span></button>
+            <div class="profile">
+                <div class="avatar" id="profileAvatar" aria-hidden="true">J</div>
+                <span class="profile-name" id="profileName">admin</span>
+                <button type="button" class="link-button" id="logoutBtn">Logout</button>
+            </div>
+        </header>
+
+        <main class="content" id="mainContent">
+        <div class="page-title-row">
+            <h1 class="page-title">Products</h1>
+            <button type="button" class="btn-primary" id="addProductBtn">+ Add Product</button>
+        </div>
+
+        <div class="panel">
+            <div class="filters-bar">
+                <input type="text" id="inventorySearch" placeholder="Search products...">
+                <select id="stockFilter">
+                    <option value="all">All stock levels</option>
+                    <option value="in">In stock</option>
+                    <option value="low">Low stock</option>
+                    <option value="out">Out of stock</option>
+                </select>
+            </div>
+
+            <div class="table-wrap">
+                <table class="data-table">
+                    <thead><tr><th>Product</th><th>Price</th><th>Stock</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="inventoryTableBody"></tbody>
+                </table>
+            </div>
+            <p class="empty-state" id="inventoryEmpty" hidden>No products match your search.</p>
+        </div>
+
+        <div class="modal-backdrop" id="addStockModal" hidden>
+            <div class="modal modal-sm">
+                <div class="modal-header">
+                    <h3>Add Stock</h3>
+                    <button type="button" class="modal-close" data-close="addStockModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="modal-customer">Product: <strong id="addStockProductName"></strong></p>
+                    <div class="form-field">
+                        <label>Quantity to add</label>
+                        <input type="number" id="addStockQty" min="1" step="1" placeholder="e.g. 24">
+                    </div>
+                    <p class="modal-error" id="addStockError" hidden></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" data-close="addStockModal">Cancel</button>
+                    <button type="button" class="btn-primary" id="confirmAddStockBtn">Add Stock</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-backdrop" id="addProductModal" hidden>
+            <div class="modal modal-sm">
+                <div class="modal-header">
+                    <h3>Add Product</h3>
+                    <button type="button" class="modal-close" data-close="addProductModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-field">
+                        <label>Product Name</label>
+                        <input type="text" id="newProductName" placeholder="e.g. Skyflakes Crackers">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label>Price (₱)</label>
+                            <input type="number" id="newProductPrice" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-field">
+                            <label>Starting Stock</label>
+                            <input type="number" id="newProductStock" min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+                    <p class="modal-error" id="addProductError" hidden></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" data-close="addProductModal">Cancel</button>
+                    <button type="button" class="btn-primary" id="confirmAddProductBtn">Save Product</button>
+                </div>
+            </div>
+        </div>
+        <div class="modal-backdrop" id="editProductModal" hidden>
+            <div class="modal modal-sm">
+                <div class="modal-header">
+                    <h3>Edit Product</h3>
+                    <button type="button" class="modal-close" data-close="editProductModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-field">
+                        <label>Product Name</label>
+                        <input type="text" id="editProductName" placeholder="e.g. Skyflakes Crackers">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-field">
+                            <label>Price (₱)</label>
+                            <input type="number" id="editProductPrice" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="form-field">
+                            <label>Stock</label>
+                            <input type="number" id="editProductStock" min="0" step="1" placeholder="0">
+                        </div>
+                    </div>
+                    <p class="modal-error" id="editProductError" hidden></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" data-close="editProductModal">Cancel</button>
+                    <button type="button" class="btn-primary" id="confirmEditProductBtn">Update Product</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-backdrop" id="deleteProductModal" hidden>
+            <div class="modal modal-sm">
+                <div class="modal-header">
+                    <h3>Delete Product</h3>
+                    <button type="button" class="modal-close" data-close="deleteProductModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="modal-customer">Are you sure you want to delete <strong id="deleteProductName"></strong>? This cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" data-close="deleteProductModal">Cancel</button>
+                    <button type="button" class="btn-primary btn-danger" id="confirmDeleteProductBtn">Delete Product</button>
+                </div>
+            </div>
+        </div>
+        </main>
+    </div>
+</div>
+
+<script>
+let invActiveStockAdjustId = null;
+
+function initInventoryView() {
+    invActiveStockAdjustId = null;
+
+    invRenderTable();
+
+    document.getElementById('inventorySearch').addEventListener('input', invRenderTable);
+    document.getElementById('stockFilter').addEventListener('change', invRenderTable);
+
+    document.getElementById('addProductBtn').addEventListener('click', () => {
+        document.getElementById('newProductName').value = '';
+        document.getElementById('newProductPrice').value = '';
+        document.getElementById('newProductStock').value = '';
+        document.getElementById('addProductError').hidden = true;
+        showModal('addProductModal');
+    });
+
+    document.getElementById('confirmAddProductBtn').addEventListener('click', invSaveNewProduct);
+    document.getElementById('confirmAddStockBtn').addEventListener('click', invConfirmAddStock);
+    document.getElementById('confirmEditProductBtn').addEventListener('click', invConfirmEditProduct);
+    document.getElementById('confirmDeleteProductBtn').addEventListener('click', invConfirmDeleteProduct);
+}
+
+function invStatusFor(product) {
+    if (product.stock === 0) return { label: 'Out of stock', cls: 'badge-danger' };
+    if (product.stock <= LOW_STOCK_THRESHOLD) return { label: 'Low stock', cls: 'badge-warning' };
+    return { label: 'In stock', cls: 'badge-success' };
+}
+
+function invRenderTable() {
+    const query = document.getElementById('inventorySearch').value.trim().toLowerCase();
+    const filter = document.getElementById('stockFilter').value;
+
+    let products = getProducts();
+    if (query) products = products.filter(p => p.name.toLowerCase().includes(query));
+    if (filter === 'in') products = products.filter(p => p.stock > LOW_STOCK_THRESHOLD);
+    if (filter === 'low') products = products.filter(p => p.stock > 0 && p.stock <= LOW_STOCK_THRESHOLD);
+    if (filter === 'out') products = products.filter(p => p.stock === 0);
+
+    const tbody = document.getElementById('inventoryTableBody');
+    const empty = document.getElementById('inventoryEmpty');
+
+    if (!products.length) {
+        tbody.innerHTML = '';
+        empty.hidden = false;
+        return;
+    }
+
+    empty.hidden = true;
+
+    tbody.innerHTML = products.map(p => {
+        const status = invStatusFor(p);
+        return `
+            <tr>
+                <td>${escapeHtml(p.name)}</td>
+                <td>${peso(p.price)}</td>
+                <td>${p.stock}</td>
+                <td><span class="badge ${status.cls}">${status.label}</span></td>
+                <td>
+                    <div class="row-actions">
+                        <button type="button" class="btn-secondary btn-sm" data-edit-product="${p.id}">Edit</button>
+                        <button type="button" class="btn-secondary btn-sm" data-add-stock="${p.id}">+ Stock</button>
+                        <button type="button" class="btn-secondary btn-sm text-red-btn" data-delete-product="${p.id}">Delete</button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+
+    tbody.querySelectorAll('[data-add-stock]').forEach(button => {
+        button.addEventListener('click', () => invOpenAddStock(Number(button.dataset.addStock)));
+    });
+
+    tbody.querySelectorAll('[data-edit-product]').forEach(button => {
+        button.addEventListener('click', () => invOpenEditProduct(Number(button.dataset.editProduct)));
+    });
+
+    tbody.querySelectorAll('[data-delete-product]').forEach(button => {
+        button.addEventListener('click', () => invOpenDeleteProduct(Number(button.dataset.deleteProduct)));
+    });
+}
+
+function invOpenAddStock(id) {
+    const product = getProduct(id);
+    if (!product) return;
+
+    invActiveStockAdjustId = id;
+    document.getElementById('addStockProductName').textContent = product.name;
+    document.getElementById('addStockQty').value = '';
+    document.getElementById('addStockError').hidden = true;
+    showModal('addStockModal');
+}
+
+function invConfirmAddStock() {
+    const qty = Number(document.getElementById('addStockQty').value);
+    const error = document.getElementById('addStockError');
+
+    if (!Number.isFinite(qty) || qty <= 0) {
+        error.textContent = 'Enter a quantity greater than 0.';
+        error.hidden = false;
+        return;
+    }
+
+    const product = getProduct(invActiveStockAdjustId);
+    if (product) updateProductStock(product.id, product.stock + qty);
+
+    hideModal('addStockModal');
+    invRenderTable();
+}
+
+function invSaveNewProduct() {
+    const name = document.getElementById('newProductName').value.trim();
+    const price = Number(document.getElementById('newProductPrice').value);
+    const stock = Number(document.getElementById('newProductStock').value) || 0;
+    const error = document.getElementById('addProductError');
+
+    if (!name) {
+        error.textContent = 'Product name is required.';
+        error.hidden = false;
+        return;
+    }
+
+    if (!Number.isFinite(price) || price <= 0) {
+        error.textContent = 'Enter a valid price greater than 0.';
+        error.hidden = false;
+        return;
+    }
+
+    addProduct({ name, price, stock: Math.max(0, Math.round(stock)) });
+    hideModal('addProductModal');
+    invRenderTable();
+}
+
+let invActiveEditId = null;
+let invActiveDeleteId = null;
+
+function invOpenEditProduct(id) {
+    const product = getProduct(id);
+    if (!product) return;
+
+    invActiveEditId = id;
+    document.getElementById('editProductName').value = product.name;
+    document.getElementById('editProductPrice').value = product.price;
+    document.getElementById('editProductStock').value = product.stock;
+    document.getElementById('editProductError').hidden = true;
+    showModal('editProductModal');
+}
+
+function invConfirmEditProduct() {
+    const name = document.getElementById('editProductName').value.trim();
+    const price = Number(document.getElementById('editProductPrice').value);
+    const stock = Number(document.getElementById('editProductStock').value);
+    const error = document.getElementById('editProductError');
+
+    if (!name) {
+        error.textContent = 'Product name is required.';
+        error.hidden = false;
+        return;
+    }
+
+    if (!Number.isFinite(price) || price <= 0) {
+        error.textContent = 'Enter a valid price greater than 0.';
+        error.hidden = false;
+        return;
+    }
+
+    if (!Number.isFinite(stock) || stock < 0) {
+        error.textContent = 'Enter a valid stock quantity (0 or more).';
+        error.hidden = false;
+        return;
+    }
+
+    updateProduct(invActiveEditId, { name, price, stock: Math.round(stock) });
+    hideModal('editProductModal');
+    invRenderTable();
+}
+
+function invOpenDeleteProduct(id) {
+    const product = getProduct(id);
+    if (!product) return;
+
+    invActiveDeleteId = id;
+    document.getElementById('deleteProductName').textContent = product.name;
+    showModal('deleteProductModal');
+}
+
+function invConfirmDeleteProduct() {
+    if (invActiveDeleteId !== null) {
+        deleteProduct(invActiveDeleteId);
+        invActiveDeleteId = null;
+    }
+    hideModal('deleteProductModal');
+    invRenderTable();
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const session = getSession();
+    if (!session) return;
+
+    document.getElementById('profileName').textContent = session.name;
+    document.getElementById('profileAvatar').textContent = session.name.charAt(0).toUpperCase();
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    initInventoryView();
+});
+</script>
+</body>
+</html>

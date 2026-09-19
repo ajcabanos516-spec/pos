@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en" data-auth-mode="protected">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Point of Sale — StockIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="script.js"></script>
+<script>requireAuth();</script>
+</head>
+<body>
+
+<div class="app">
+    <button class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></button>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="logo"><span class="logo-text">StockIT</span></div>
+        <nav class="nav" id="mainNav" aria-label="Main navigation">
+            <a href="index.html" class="nav-item"><span class="nav-icon" aria-hidden="true">▦</span><span>Dashboard</span></a>
+            <a href="pos.html" class="nav-item active"><span class="nav-icon" aria-hidden="true">🛒</span><span>Point of Sale</span></a>
+            <a href="products.html" class="nav-item"><span class="nav-icon" aria-hidden="true">📦</span><span>Products</span></a>
+            <a href="sales-history.html" class="nav-item"><span class="nav-icon" aria-hidden="true">🕘</span><span>Sales History</span></a>
+            <a href="sales-report.html" class="nav-item"><span class="nav-icon" aria-hidden="true">📊</span><span>Sales Report</span></a>
+        </nav>
+    </aside>
+
+    <div class="main">
+        <header class="topbar">
+            <button class="hamburger" id="sidebarToggle" aria-label="Toggle sidebar menu">☰</button>
+            <div class="spacer"></div>
+            <button class="icon-button" aria-label="Notifications">🔔<span class="notif-dot" aria-hidden="true"></span></button>
+            <div class="profile">
+                <div class="avatar" id="profileAvatar" aria-hidden="true">J</div>
+                <span class="profile-name" id="profileName">admin</span>
+                <button type="button" class="link-button" id="logoutBtn">Logout</button>
+            </div>
+        </header>
+
+        <main class="content" id="mainContent">
+        <h1 class="page-title">Point of Sale</h1>
+
+        <div class="pos-layout">
+            <section class="pos-products-panel">
+                <div class="pos-search">
+                    <input type="text" id="productSearch" placeholder="Search products...">
+                </div>
+                <div class="product-grid" id="productGrid"></div>
+            </section>
+
+            <aside>
+                <div class="order-card">
+                    <h2 class="order-title">Current Order</h2>
+                    <div id="orderItems">
+                        <p class="order-empty" id="orderEmpty">No items yet. Tap a product to add it.</p>
+                        <table class="order-table" id="orderTable" hidden>
+                            <thead><tr><th>Product</th><th>Qty</th><th>Price</th><th>Total</th><th></th></tr></thead>
+                            <tbody id="orderTableBody"></tbody>
+                        </table>
+                    </div>
+
+                    <div class="order-totals">
+                        <div class="order-total-row"><span>Subtotal</span><span id="orderSubtotal">₱0.00</span></div>
+                        <div class="order-total-row order-total-grand"><span>Total</span><span id="orderTotal">₱0.00</span></div>
+                    </div>
+
+                    <button type="button" class="btn-checkout" id="checkoutBtn" disabled>Checkout</button>
+                </div>
+            </aside>
+        </div>
+
+        <div class="modal-backdrop" id="checkoutModal" hidden>
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>Checkout</h3>
+                    <button type="button" class="modal-close" data-close="checkoutModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-section-label">Items</div>
+                    <ul class="modal-items" id="checkoutItemsList"></ul>
+
+                    <div class="modal-total-due"><span>Total Due</span><span id="checkoutTotalDue">₱0.00</span></div>
+
+                    <div class="modal-section-label">Payment Method</div>
+                    <div class="payment-methods">
+                        <button type="button" class="payment-method-btn active" data-method="Cash">Cash</button>
+                        <button type="button" class="payment-method-btn" data-method="GCash">GCash</button>
+                    </div>
+
+                    <div class="cash-fields" id="cashFields">
+                        <div class="cash-field">
+                            <label>Amount Received</label>
+                            <input type="number" id="amountReceived" min="0" step="0.01" placeholder="0.00">
+                        </div>
+                        <div class="cash-field">
+                            <label>Change</label>
+                            <div class="change-display" id="changeDisplay">₱0.00</div>
+                        </div>
+                    </div>
+
+                    <div class="form-field" id="referenceFields" style="display:none;">
+                        <label>Reference Number</label>
+                        <input type="text" id="referenceNumber" placeholder="e.g. 0912345678901">
+                    </div>
+
+                    <p class="modal-error" id="checkoutError" hidden></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" data-close="checkoutModal">Cancel</button>
+                    <button type="button" class="btn-primary" id="completeSaleBtn">Complete Sale</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-backdrop" id="successModal" hidden>
+            <div class="modal modal-sm">
+                <div class="modal-body success-body">
+                    <div class="success-check">✓</div>
+                    <h3>Sale Completed</h3>
+                    <p class="success-sub">Transaction successfully recorded</p>
+                    <div class="success-details">
+                        <div class="success-row"><span>Transaction No.</span><strong id="successTxnNo"></strong></div>
+                        <div class="success-row"><span>Total Paid</span><strong id="successTotal"></strong></div>
+                        <div class="success-row"><span>Payment</span><strong id="successPayment"></strong></div>
+                        <div class="success-row" id="successChangeRow"><span>Change</span><strong id="successChange"></strong></div>
+                        <div class="success-row" id="successReferenceRow"><span>Reference No.</span><strong id="successReference"></strong></div>
+                    </div>
+                </div>
+                <div class="modal-footer success-footer">
+                    <button type="button" class="btn-secondary" id="printReceiptBtn">Print Receipt</button>
+                    <button type="button" class="btn-secondary" id="viewTransactionLink">View in History</button>
+                    <button type="button" class="btn-primary" id="newSaleBtn">New Sale</button>
+                </div>
+            </div>
+        </div>
+        </main>
+    </div>
+</div>
+
+<div id="printableReport" class="printable-report"></div>
+
+<script>
+let posState = { cart: [], paymentMethod: 'Cash', lastTxnNo: null, lastSale: null };
+
+function initPosView() {
+    posState = { cart: [], paymentMethod: 'Cash', lastTxnNo: null, lastSale: null };
+
+    posRenderProducts();
+
+    document.getElementById('productSearch').addEventListener('input', e => {
+        const query = e.target.value.trim().toLowerCase();
+        document.querySelectorAll('#productGrid .product-card').forEach(card => {
+            const name = card.querySelector('.product-name').textContent.toLowerCase();
+            card.style.display = name.includes(query) ? '' : 'none';
+        });
+    });
+
+    const tbody = document.getElementById('orderTableBody');
+
+    tbody.addEventListener('click', event => {
+        const button = event.target.closest('[data-action]');
+        if (!button) return;
+        const id = Number(button.closest('tr').dataset.id);
+        const item = posState.cart.find(line => line.id === id);
+        if (!item) return;
+
+        if (button.dataset.action === 'increase' && item.qty < item.stock) item.qty++;
+
+        if (button.dataset.action === 'decrease') {
+            item.qty--;
+            if (item.qty <= 0) posState.cart = posState.cart.filter(line => line.id !== id);
+        }
+
+        if (button.dataset.action === 'remove') posState.cart = posState.cart.filter(line => line.id !== id);
+
+        posRenderOrder();
+    });
+
+    tbody.addEventListener('change', event => {
+        if (!event.target.matches('[data-qty-input]')) return;
+        const id = Number(event.target.closest('tr').dataset.id);
+        const item = posState.cart.find(line => line.id === id);
+        if (!item) return;
+
+        let qty = Number(event.target.value);
+        if (!Number.isFinite(qty) || qty < 1) qty = 1;
+        if (qty > item.stock) qty = item.stock;
+
+        item.qty = qty;
+        posRenderOrder();
+    });
+
+    document.getElementById('checkoutBtn').addEventListener('click', posOpenCheckout);
+
+    document.querySelectorAll('.payment-method-btn').forEach(button => {
+        button.addEventListener('click', () => {
+            document.querySelectorAll('.payment-method-btn').forEach(btn => btn.classList.remove('active'));
+            button.classList.add('active');
+            posState.paymentMethod = button.dataset.method;
+            posToggleCheckoutFields();
+            document.getElementById('checkoutError').hidden = true;
+        });
+    });
+
+    document.getElementById('amountReceived').addEventListener('input', posUpdateChange);
+    document.getElementById('completeSaleBtn').addEventListener('click', posCompleteSale);
+    document.getElementById('newSaleBtn').addEventListener('click', posStartNewSale);
+    document.getElementById('viewTransactionLink').addEventListener('click', () => { window.location.href = 'sales-history.html'; });
+    document.getElementById('printReceiptBtn').addEventListener('click', () => printReceipt(posState.lastSale));
+
+    posRenderOrder();
+}
+
+function posRenderProducts() {
+    const grid = document.getElementById('productGrid');
+    const products = getProducts();
+
+    grid.innerHTML = products.map(p => `
+        <button type="button" class="product-card ${p.stock <= 0 ? 'out-of-stock' : ''}"
+            data-id="${p.id}" ${p.stock <= 0 ? 'disabled' : ''}>
+            <span class="product-name">${escapeHtml(p.name)}</span>
+            <span class="product-price">${peso(p.price)}</span>
+            <span class="product-stock">${p.stock} in stock</span>
+        </button>
+    `).join('');
+
+    grid.querySelectorAll('.product-card').forEach(card => {
+        card.addEventListener('click', () => {
+            if (card.disabled) return;
+            posAddToCart(Number(card.dataset.id));
+        });
+    });
+}
+
+function posAddToCart(id) {
+    const product = getProduct(id);
+    if (!product) return;
+
+    const existing = posState.cart.find(item => item.id === id);
+
+    if (existing) {
+        if (existing.qty < product.stock) existing.qty++;
+    } else {
+        posState.cart.push({ id: product.id, name: product.name, price: product.price, stock: product.stock, qty: 1 });
+    }
+
+    posRenderOrder();
+}
+
+function posRenderOrder() {
+    const empty = document.getElementById('orderEmpty');
+    const table = document.getElementById('orderTable');
+    const tbody = document.getElementById('orderTableBody');
+    const checkout = document.getElementById('checkoutBtn');
+
+    if (posState.cart.length === 0) {
+        empty.hidden = false;
+        table.hidden = true;
+        checkout.disabled = true;
+        document.getElementById('orderSubtotal').textContent = peso(0);
+        document.getElementById('orderTotal').textContent = peso(0);
+        return;
+    }
+
+    empty.hidden = true;
+    table.hidden = false;
+    checkout.disabled = false;
+
+    let subtotal = 0;
+
+    tbody.innerHTML = posState.cart.map(item => {
+        const total = item.price * item.qty;
+        subtotal += total;
+
+        return `
+            <tr data-id="${item.id}">
+                <td>${escapeHtml(item.name)}</td>
+                <td>
+                    <div class="qty-cell">
+                        <button type="button" class="qty-btn" data-action="decrease">−</button>
+                        <input type="number" min="1" max="${item.stock}" value="${item.qty}" data-qty-input>
+                        <button type="button" class="qty-btn" data-action="increase">+</button>
+                    </div>
+                </td>
+                <td>${peso(item.price)}</td>
+                <td>${peso(total)}</td>
+                <td><button type="button" class="remove-btn" data-action="remove">🗑</button></td>
+            </tr>
+        `;
+    }).join('');
+
+    document.getElementById('orderSubtotal').textContent = peso(subtotal);
+    document.getElementById('orderTotal').textContent = peso(subtotal);
+}
+
+function posGetCartTotal() {
+    return posState.cart.reduce((total, item) => total + item.price * item.qty, 0);
+}
+
+function posOpenCheckout() {
+    if (!posState.cart.length) return;
+
+    let total = 0;
+    const list = document.getElementById('checkoutItemsList');
+
+    list.innerHTML = posState.cart.map(item => {
+        const lineTotal = item.price * item.qty;
+        total += lineTotal;
+        return `<li><span>${escapeHtml(item.name)} × ${item.qty}</span><strong>${peso(lineTotal)}</strong></li>`;
+    }).join('');
+
+    document.getElementById('checkoutTotalDue').textContent = peso(total);
+    document.getElementById('amountReceived').value = '';
+    document.getElementById('changeDisplay').textContent = peso(0);
+    document.getElementById('referenceNumber').value = '';
+    document.getElementById('checkoutError').hidden = true;
+
+    posState.paymentMethod = 'Cash';
+
+    document.querySelectorAll('.payment-method-btn').forEach(button => {
+        button.classList.toggle('active', button.dataset.method === 'Cash');
+    });
+
+    posToggleCheckoutFields();
+    showModal('checkoutModal');
+}
+
+function posToggleCheckoutFields() {
+    const method = posState.paymentMethod;
+    document.getElementById('cashFields').style.display = method === 'Cash' ? 'grid' : 'none';
+    document.getElementById('referenceFields').style.display = method === 'GCash' ? 'flex' : 'none';
+}
+
+function posUpdateChange() {
+    const total = posGetCartTotal();
+    const received = Number(document.getElementById('amountReceived').value) || 0;
+    document.getElementById('changeDisplay').textContent = peso(Math.max(0, received - total));
+}
+
+function posCompleteSale() {
+    const total = posGetCartTotal();
+    const received = Number(document.getElementById('amountReceived').value) || 0;
+    const referenceNumber = document.getElementById('referenceNumber').value.trim();
+    const error = document.getElementById('checkoutError');
+    const method = posState.paymentMethod;
+
+    if (method === 'Cash' && received < total) {
+        error.textContent = 'Amount received is less than the amount due.';
+        error.hidden = false;
+        return;
+    }
+
+    if (method === 'GCash' && !referenceNumber) {
+        error.textContent = 'Please enter the reference number.';
+        error.hidden = false;
+        return;
+    }
+
+    const change = method === 'Cash' ? received - total : 0;
+    const txnNo = nextTxnNo();
+
+    posState.cart.forEach(item => updateProductStock(item.id, getProduct(item.id).stock - item.qty));
+
+    const sale = {
+        txnNo,
+        date: new Date().toISOString(),
+        items: posState.cart.map(i => ({ id: i.id, name: i.name, price: i.price, qty: i.qty })),
+        total,
+        payment: method,
+        received: method === 'Cash' ? received : 0,
+        change,
+        reference: method === 'GCash' ? referenceNumber : ''
+    };
+
+    addSale(sale);
+    posState.lastTxnNo = txnNo;
+    posState.lastSale = sale;
+
+    hideModal('checkoutModal');
+    document.getElementById('successTxnNo').textContent = txnNo;
+    document.getElementById('successTotal').textContent = peso(total);
+    document.getElementById('successPayment').textContent = method;
+
+    document.getElementById('successChangeRow').style.display = method === 'Cash' ? 'flex' : 'none';
+
+    if (method === 'Cash') {
+        document.getElementById('successChange').textContent = peso(change);
+    }
+
+    document.getElementById('successReferenceRow').style.display = sale.reference ? 'flex' : 'none';
+
+    if (sale.reference) {
+        document.getElementById('successReference').textContent = sale.reference;
+    }
+
+    showModal('successModal');
+}
+
+function posStartNewSale() {
+    posState.cart = [];
+    document.getElementById('productSearch').value = '';
+    posRenderProducts();
+    posRenderOrder();
+    hideModal('successModal');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    const session = getSession();
+    if (!session) return;
+
+    document.getElementById('profileName').textContent = session.name;
+    document.getElementById('profileAvatar').textContent = session.name.charAt(0).toUpperCase();
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    initPosView();
+});
+</script>
+</body>
+</html>

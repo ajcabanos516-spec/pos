@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en" data-auth-mode="guest">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log In — StockIT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+<script src="script.js"></script>
+<script>redirectIfAuthenticated('index.html');</script>
+</head>
+<body>
+
+<div class="login-page">
+    <form class="login-card" id="loginForm" novalidate>
+        <h1 class="login-title">StockIT</h1>
+        <p class="login-sub">Sign in to manage your store</p>
+
+        <div class="login-field">
+            <label for="loginUsername">Username</label>
+            <input type="text" id="loginUsername" placeholder="Enter your username" autocomplete="username">
+        </div>
+
+        <div class="login-field">
+            <label for="loginPassword">Password</label>
+            <input type="password" id="loginPassword" placeholder="Enter your password" autocomplete="current-password">
+        </div>
+
+        <p class="modal-error" id="loginError" hidden></p>
+
+        <button type="submit" class="btn-login">Log In</button>
+
+        <p class="login-hint">Demo account: admin / admin123</p>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('loginForm').addEventListener('submit', event => {
+        event.preventDefault();
+
+        const username = document.getElementById('loginUsername').value.trim().toLowerCase();
+        const password = document.getElementById('loginPassword').value;
+        const error = document.getElementById('loginError');
+
+        const account = DEMO_ACCOUNTS.find(a => a.username === username && a.password === password);
+
+        if (!account) {
+            error.textContent = 'Invalid username or password.';
+            error.hidden = false;
+            return;
+        }
+
+        error.hidden = true;
+        setSession({ username: account.username, name: account.name });
+        window.location.href = 'index.html';
+    });
+});
+</script>
+</body>
+</html>
